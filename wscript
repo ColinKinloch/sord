@@ -34,6 +34,8 @@ def options(opt):
                    help='Build programs as static binaries')
     opt.add_option('--dump', type='string', default='', dest='dump',
                    help='Dump debugging output (iter, search, write, all)')
+    opt.add_option('--android', action='store_true', dest='android',
+                   help='Build for android')
 
 def configure(conf):
     conf.load('compiler_c')
@@ -48,11 +50,12 @@ def configure(conf):
     autowaf.set_c99_mode(conf)
     autowaf.display_header('Sord configuration')
 
-    conf.env.BUILD_UTILS  = not Options.options.no_utils
+    conf.env.BUILD_UTILS  = not (Options.options.no_utils or Options.options.android)
     conf.env.BUILD_SHARED = not Options.options.no_shared
     conf.env.STATIC_PROGS = Options.options.static_progs
     conf.env.BUILD_STATIC = (Options.options.static or
                              Options.options.static_progs)
+    conf.env.ANDROID      = Options.options.android
 
     autowaf.check_pkg(conf, 'serd-0', uselib_store='SERD',
                       atleast_version='0.22.4', mandatory=True)
@@ -104,6 +107,15 @@ def build(bld):
     libflags = ['-fvisibility=hidden']
     libs     = ['m']
     defines  = []
+    includes = ['.', './src']
+    ldflags  = []
+    libpath  = []
+
+    if bld.env.ANDROID:
+        includes += [bld.env.PREFIX + '/include/']
+        ldflags  += ['--sysroot=' + bld.env.PREFIX + '/..']
+        libpath  += [bld.env.PREFIX + '/lib/']
+
     if bld.env.MSVC_COMPILER:
         libflags = []
         libs     = []
@@ -113,7 +125,7 @@ def build(bld):
     if bld.env.BUILD_SHARED:
         obj = bld(features        = 'c cshlib',
                   source          = source,
-                  includes        = ['.', './src'],
+                  includes        = includes,
                   export_includes = ['.'],
                   name            = 'libsord',
                   target          = 'sord-%s' % SORD_MAJOR_VERSION,
@@ -121,21 +133,25 @@ def build(bld):
                   install_path    = '${LIBDIR}',
                   libs            = libs,
                   defines         = defines + ['SORD_SHARED', 'SORD_INTERNAL'],
-                  cflags          = libflags)
+                  cflags          = libflags,
+                  libpath         = libpath,
+                  ldflags         = ldflags)
         autowaf.use_lib(bld, obj, 'SERD')
 
     # Static Library
     if bld.env.BUILD_STATIC:
         obj = bld(features        = 'c cstlib',
                   source          = source,
-                  includes        = ['.', './src'],
+                  includes        = includes,
                   export_includes = ['.'],
                   name            = 'libsord_static',
                   target          = 'sord-%s' % SORD_MAJOR_VERSION,
                   vnum            = SORD_VERSION,
                   install_path    = '${LIBDIR}',
                   libs            = libs,
-                  defines         = ['SORD_INTERNAL'])
+                  defines         = ['SORD_INTERNAL'],
+                  libpath         = libpath,
+                  ldflags         = ldflags)
         autowaf.use_lib(bld, obj, 'SERD')
 
     if bld.env.BUILD_TESTS:
