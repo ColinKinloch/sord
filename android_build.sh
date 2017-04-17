@@ -1,5 +1,5 @@
 export HOST_ARCH=$(uname -m)
-export HOST_OS=darwin
+export HOST_OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 export TARG_ARM=arm
 export AND_API=24
 export AND_VER=4.9
@@ -12,6 +12,7 @@ export CXX=${TOOLCHAIN}/bin/${AND_TRI}-c++
 export LIBDIR=${SYSROOT}/usr/lib/
 export INCLUDEDIR=${SYSROOT}/usr/include/
 export PATH="${NDK_BIN}:${PATH}:${NDK_BIN}"
+export PKG_CONFIG_PATH=${SYSROOT}/usr/lib/pkgconfig
 rm -r ./build
 ./waf configure --prefix=${SYSROOT}/usr --static --android
 ./waf build
